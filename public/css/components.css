@@ -1,0 +1,708 @@
+/* Styles de base */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #f5f5f5;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.status-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: #666;
+}
+
+.status-info span {
+    font-size: 14px;
+}
+
+#deviceName {
+    color: #333;
+    font-weight: 500;
+}
+
+.status-led {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.status-led.connected { 
+    background: #4CAF50;
+    box-shadow: 0 0 8px #4CAF50;
+}
+
+.status-led.disconnected { 
+    background: #f44336;
+    box-shadow: 0 0 8px #f44336;
+}
+
+.status-led.waiting { 
+    background: #FFA000;
+    box-shadow: 0 0 8px #FFA000;
+}
+
+.status-text {
+    font-size: 14px;
+    color: #666;
+}
+
+.icon-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    color: #666;
+    transition: color 0.3s;
+}
+
+.icon-button:hover {
+    color: #333;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.main-content {
+    margin-top: 20px;
+}
+
+/* Styles pour les composants */
+
+/* NoMappingView */
+.no-mapping-view {
+    text-align: center;
+    padding: 40px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin: 20px;
+}
+
+.no-mapping-view h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.no-mapping-view p {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.add-first-mapping-btn {
+    padding: 12px 24px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.add-first-mapping-btn:hover {
+    background-color: #0056b3;
+}
+
+.large-add-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 32px;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    background: none;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.large-add-btn:hover {
+    border-color: #4CAF50;
+    color: #4CAF50;
+    background: rgba(76, 175, 80, 0.1);
+}
+
+/* MappingList */
+.mappings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.mappings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.mappings-header h2 {
+    margin: 0;
+    padding-left: 8px;
+}
+
+.start-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.start-copy-btn:hover {
+    background: #45a049;
+}
+
+.start-copy-btn.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.start-copy-btn.disabled:hover {
+    background-color: #4CAF50;
+}
+
+.mapping-list {
+    padding: 20px;
+}
+
+.mapping-item {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.mapping-content {
+    width: 100%;
+    padding: 16px;
+    background: #f8f9fa;
+}
+
+.mapping-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.mapping-title {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    flex: 1;
+    margin-right: 16px;
+}
+
+.mapping-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.mapping-details {
+    color: #666;
+}
+
+.mapping-path {
+    margin: 4px 0;
+}
+
+.copy-single-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: 2px solid #4CAF50;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.copy-single-btn:hover {
+    background-color: #45a049;
+    border-color: #45a049;
+}
+
+.copy-single-btn.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.copy-single-btn.disabled:hover {
+    background-color: inherit;
+    border-color: inherit;
+}
+
+.edit-mapping-btn {
+    background-color: #ffc107;
+    color: #000;
+    border: 2px solid #ffc107;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.edit-mapping-btn:hover {
+    background-color: #e0a800;
+    border-color: #e0a800;
+}
+
+.delete-mapping-btn {
+    background-color: #dc3545;
+    color: white;
+    border: 2px solid #dc3545;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.delete-mapping-btn:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+}
+
+.icon-button.disabled,
+.copy-single-btn.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.icon-button.disabled:hover,
+.copy-single-btn.disabled:hover {
+    background-color: inherit;
+    border-color: inherit;
+}
+
+/* Styles communs pour tous les boutons d'action */
+.start-mapping-btn,
+.edit-mapping-btn,
+.delete-mapping-btn {
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+/* Bouton de lancement (vert) */
+.start-mapping-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: 2px solid #4CAF50;
+}
+
+.start-mapping-btn:hover {
+    background-color: #45a049;
+    border-color: #45a049;
+}
+
+.start-mapping-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #ccc;
+    border-color: #ccc;
+}
+
+.start-mapping-btn:disabled:hover {
+    background-color: #ccc;
+    border-color: #ccc;
+}
+
+/* Bouton d'édition (jaune) */
+.edit-mapping-btn {
+    background-color: #ffc107;
+    color: #000;
+    border: 2px solid #ffc107;
+}
+
+.edit-mapping-btn:hover {
+    background-color: #e0a800;
+    border-color: #e0a800;
+}
+
+/* Bouton de suppression (rouge) */
+.delete-mapping-btn {
+    background-color: #dc3545;
+    color: white;
+    border: 2px solid #dc3545;
+}
+
+.delete-mapping-btn:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+}
+
+/* États désactivés */
+.start-mapping-btn.disabled,
+.edit-mapping-btn.disabled,
+.delete-mapping-btn.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.start-mapping-btn.disabled:hover,
+.edit-mapping-btn.disabled:hover,
+.delete-mapping-btn.disabled:hover {
+    background-color: inherit;
+    border-color: inherit;
+}
+
+/* Ajustement de la taille des icônes */
+.start-mapping-btn svg,
+.edit-mapping-btn svg,
+.delete-mapping-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Styles de l'éditeur de mapping */
+mapping-editor {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    width: 500px;
+    max-width: 90%;
+    z-index: 1001;
+}
+
+mapping-editor[style*="display: none"] {
+    display: none !important;
+}
+
+mapping-editor[style*="display: block"] {
+    display: block !important;
+}
+
+.editor-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.editor-overlay[style*="display: none"] {
+    display: none !important;
+}
+
+.editor-overlay[style*="display: block"] {
+    display: block !important;
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.editor-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #333;
+}
+
+.editor-content {
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.form-group input:read-only {
+    background-color: #f8f9fa;
+}
+
+.path-input {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.path-input input {
+    flex-grow: 1;
+}
+
+.browse-btn {
+    padding: 8px;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+}
+
+.browse-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.editor-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.cancel-btn,
+.save-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.cancel-btn {
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    color: #666;
+}
+
+.save-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+}
+
+.cancel-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.save-btn:hover {
+    background-color: #0056b3;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    color: #333;
+}
+
+/* Panneau de configuration */
+.config-panel {
+    padding: 20px;
+}
+
+.config-panel h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.config-item {
+    margin-bottom: 15px;
+}
+
+.config-item label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.config-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+.config-actions {
+    margin-top: 20px;
+}
+
+.save-config-btn {
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.save-config-btn:hover {
+    background-color: #45a049;
+}
+
+/* Barre de progression */
+.copy-progress {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    width: 80%;
+    max-width: 600px;
+    z-index: 9999;
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.progress-title {
+    font-weight: 500;
+    color: #333;
+}
+
+.progress-details {
+    color: #666;
+    font-size: 14px;
+}
+
+.progress-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #2196F3;
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+.cancel-copy-btn {
+    background: #f44336;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.cancel-copy-btn:hover {
+    background: #d32f2f;
+}
+
+/* Message d'erreur */
+.error-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffebee;
+    color: #d32f2f;
+    padding: 12px 20px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+.error-message .close-btn {
+    background: none;
+    border: none;
+    color: #d32f2f;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.error-message .close-btn:hover {
+    opacity: 0.8;
+}
