@@ -3,9 +3,10 @@ const fs = require('fs');
 const fsPromises = fs.promises;
 const { pipeline } = require('stream/promises');
 const { Client } = require('ssh2');
+const crypto = require('crypto');
 
 function normalizeFingerprint(value) {
-    return String(value || '').replace(/^SHA256:/i, '').trim();
+    return String(value || '').replace(/^SHA256:/i, '').trim().toLowerCase();
 }
 
 function isDirectory(attrs) {
@@ -32,11 +33,47 @@ class SftpSource {
         return source;
     }
 
+    // Obtain the host key fingerprint without sending the SFTP password.
+    static async getHostFingerprint(options) {
+        const { host, port = 2222 } = options || {};
+        if (!host) throw new Error('Adresse IP du téléphone manquante.');
+        const connection = new Client();
+        return new Promise((resolve, reject) => {
+            let fingerprint = null;
+            let settled = false;
+            const finish = (error) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeout);
+                connection.end();
+                if (fingerprint) resolve(fingerprint);
+                else reject(error || new Error('Impossible de lire la clé SSH du téléphone.'));
+            };
+            const timeout = setTimeout(() => finish(new Error('Délai dépassé lors de la lecture de la clé SSH.')), 16000);
+            connection.once('error', finish);
+            connection.once('close', () => finish(new Error('Connexion fermée pendant la lecture de la clé SSH.')));
+            connection.connect({
+                host,
+                port: Number(port),
+                username: 'fingerprint-check',
+                password: 'fingerprint-check',
+                readyTimeout: 15000,
+                hostHash: 'sha256',
+                hostVerifier: (hash) => {
+                    fingerprint = hash;
+                    return false;
+                }
+            });
+        });
+    }
+
     async open() {
         const { host, port = 2222, username, password, hostKeyFingerprint } = this.options || {};
         if (!host || !username || !password) {
             throw new Error('Configuration SFTP incomplète : adresse, utilisateur et mot de passe requis.');
         }
+
+        if (!hostKeyFingerprint) throw new Error('Empreinte de clé SSH absente : utilise d’abord « Parcourir » pour vérifier le téléphone.');
 
         const numericPort = Number(port);
         if (!Number.isInteger(numericPort) || numericPort < 1 || numericPort > 65535) {
@@ -74,7 +111,7 @@ class SftpSource {
                 hostVerifier: (fingerprint) => {
                     this.hostFingerprint = fingerprint;
                     const expected = normalizeFingerprint(hostKeyFingerprint);
-                    return !expected || expected === normalizeFingerprint(fingerprint);
+                    return !!expected && expected === normalizeFingerprint(fingerprint);
                 }
             });
         }).catch((error) => {
