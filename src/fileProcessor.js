@@ -41,7 +41,7 @@ async function findLatestFileDate(basePath) {
         const baseName = path.basename(basePath);
         const entries = await fs.readdir(baseDirectory, { withFileTypes: true });
         const folders = entries.filter((entry) => entry.isDirectory() && (
-            entry.name === baseName || (entry.name.startsWith(baseName + '_') && /^\\d{2}$/.test(entry.name.slice(baseName.length + 1)))
+            entry.name === baseName || (entry.name.startsWith(baseName + '_') && /^\d{2}$/.test(entry.name.slice(baseName.length + 1)))
         ));
         let latest = new Date(0);
         for (const folder of folders) {
@@ -62,7 +62,7 @@ async function findLastExistingIndexedFolder(basePath) {
     try {
         const entries = await fs.readdir(baseDir, { withFileTypes: true });
         const folders = entries.filter((entry) => entry.isDirectory() && (
-            entry.name === baseName || (entry.name.startsWith(baseName + '_') && /^\\d{2}$/.test(entry.name.slice(baseName.length + 1)))
+            entry.name === baseName || (entry.name.startsWith(baseName + '_') && /^\d{2}$/.test(entry.name.slice(baseName.length + 1)))
         )).map((entry) => entry.name).sort((a, b) => b.localeCompare(a));
         for (const name of folders) {
             const index = name === baseName ? 0 : Number.parseInt(name.slice(baseName.length + 1), 10);
@@ -87,7 +87,7 @@ async function findNextDestination(basePath, maxFiles) {
 }
 
 async function copyOneFile(file, destination, mapping, onProgress) {
-    const target = path.join(destination, ...file.path.split(/[\\\\/]/).filter(Boolean));
+    const target = path.join(destination, ...file.path.split(/[\\/]/).filter(Boolean));
     try { await fs.access(target); return false; }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
     await fs.mkdir(path.dirname(target), { recursive: true });
