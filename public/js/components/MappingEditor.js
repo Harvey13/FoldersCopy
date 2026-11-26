@@ -246,7 +246,7 @@ class MappingEditor extends HTMLElement {
                             break;
                         }
                         if (selected === '..') {
-                            remotePath = remotePath.replace(/\\/[^/]+$/, '') || '/';
+                            remotePath = remotePath.replace(/\/[^/]+$/, '') || '/';
                             continue;
                         }
                         if (!folders.includes(selected)) throw new Error('Sous-dossier inconnu : ' + selected);
