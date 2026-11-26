@@ -121,7 +121,6 @@ async function processMapping({ mapping, onProgress, onComplete }) {
         }
 
         let processed = 0, copied = 0, destination = mapping.destPath;
-        if (onProgress) onProgress({ status: 'start', mapping: mapping.title, current: 0, total: candidates.length });
         for (const file of candidates) {
             if (isCancelled) break;
             if ((await getFileCount(destination)) >= maxFiles) destination = await findNextDestination(mapping.destPath, maxFiles);
