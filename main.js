@@ -323,6 +323,10 @@ function setupIPC() {
     });
 
     // Navigation SFTP et test de connexion (lecture seule).
+    ipcMain.handle('sftp-get-host-fingerprint', async (_event, options) => {
+        return { hostFingerprint: await SftpSource.getHostFingerprint(options) };
+    });
+
     ipcMain.handle('sftp-list-directory', async (_event, options, remotePath = '/') => {
         const source = await SftpSource.connect(options);
         try {
