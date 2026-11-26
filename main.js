@@ -9,6 +9,8 @@ const { Server } = require('socket.io');
 const logger = require(path.join(__dirname, 'utils', 'logger'));
 const { LogTypes } = logger;
 const { createConfigManager, getConfigManager } = require('./src/config');
+const { SftpSource } = require('./src/sftpSource');
+const { processMapping, cancelCopy, resetCancelFlag } = require('./src/fileProcessor');
 
 // Détecter le mode développement
 const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true';
@@ -199,6 +201,10 @@ function setupIPC() {
     ipcMain.removeHandler('get-mappings');
     ipcMain.removeHandler('get-config');
     ipcMain.removeHandler('save-config');
+    ipcMain.removeHandler('start-copy');
+    ipcMain.removeHandler('cancel-copy');
+    ipcMain.removeHandler('sftp-list-directory');
+    ipcMain.removeHandler('sftp-test-connection');
     
     // Ajouter le gestionnaire pour ouvrir la fenêtre de configuration
     ipcMain.handle('open-config', () => {
