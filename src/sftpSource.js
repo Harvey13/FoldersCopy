@@ -3,7 +3,6 @@ const fs = require('fs');
 const fsPromises = fs.promises;
 const { pipeline } = require('stream/promises');
 const { Client } = require('ssh2');
-const crypto = require('crypto');
 
 function normalizeFingerprint(value) {
     return String(value || '').replace(/^SHA256:/i, '').trim().toLowerCase();
