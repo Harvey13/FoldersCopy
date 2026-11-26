@@ -124,7 +124,7 @@ class SftpSource {
     }
 
     async listDirectory(remoteDirectory) {
-        const remotePath = path.normalize('/' + String(remoteDirectory || '/').replace(/^\\/+/, ''));
+        const remotePath = path.normalize('/' + String(remoteDirectory || '/').replace(/^\/+/, ''));
         return new Promise((resolve, reject) => {
             this.sftp.readdir(remotePath, (error, entries) => {
                 if (error) return reject(new Error(`Lecture SFTP impossible (${remotePath}) : ${error.message}`));
@@ -150,7 +150,7 @@ class SftpSource {
     async listFilesRecursively(remoteDirectory, maxFiles = 250000) {
         const files = [];
         const visited = new Set();
-        const root = path.normalize('/' + String(remoteDirectory || '/').replace(/^\\/+/, ''));
+        const root = path.normalize('/' + String(remoteDirectory || '/').replace(/^\/+/, ''));
 
         const walk = async (directory) => {
             const normalized = path.normalize(directory);
