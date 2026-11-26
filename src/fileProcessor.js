@@ -2,6 +2,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const { app } = require('electron'); // Import the electron app module
 const { log_cli } = require('./utils/logger');
+const { SftpSource } = require('./sftpSource');
 // Variables globales
 let isCancelled = false;
 // Utilitaires de base pour les fichiers
@@ -201,7 +202,7 @@ async function copyFileNative(src, dest) {
         return false;
     }
 }
-async function copyFiles({ sourcePath, destPath, filename, mapping, onProgress }) {
+async function copyFiles({ sourcePath, destPath, filename, mapping, onProgress, sourceProvider, remotePath }) {
     try {
         if (isCancelled) {
             if (onProgress) onProgress({ file: filename, status: 'cancelled', mapping: mapping.title });
@@ -221,7 +222,9 @@ async function copyFiles({ sourcePath, destPath, filename, mapping, onProgress }
             return false;
         }
         if (onProgress) onProgress({ file: filename, status: 'copying' });
-        const copied = await copyFileNative(srcFile, destFile);
+        const copied = sourceProvider
+            ? (await sourceProvider.download(remotePath, destFile), true)
+            : await copyFileNative(srcFile, destFile);
         if (copied) {
             if (onProgress) onProgress({ file: filename, status: 'copied' });
             return true;
@@ -239,6 +242,7 @@ async function copyFiles({ sourcePath, destPath, filename, mapping, onProgress }
 }
 // Traitement principal
 async function processMapping({ mapping, onProgress, onComplete }) {
+    let sourceProvider = null;
     try {
         isCancelled = false;
         if (!mapping || !mapping.sourcePath || !mapping.destPath) {
@@ -246,53 +250,63 @@ async function processMapping({ mapping, onProgress, onComplete }) {
             log_cli('ERROR', error.message, { mapping });
             throw error;
         }
-        try {
-            await fs.access(mapping.sourcePath);
-        } catch (error) {
-            throw new Error(`Le dossier source n'existe pas: ${mapping.sourcePath}`);
+
+        const isSftp = mapping.sourceType === 'sftp';
+        if (isSftp) {
+            sourceProvider = await SftpSource.connect(mapping.sftp || {});
+        } else {
+            try {
+                await fs.access(mapping.sourcePath);
+            } catch (error) {
+                throw new Error(`Le dossier source n'existe pas: ${mapping.sourcePath}`);
+            }
         }
+
         const configPath = path.join(app.getPath('userData'), 'config.json');
         const config = require(configPath);
         const maxFiles = config.maxFiles || 100;
         const latestDestDate = await findLatestFileDate(mapping.destPath);
-        // Lister les fichiers récents
-        const allFiles = await listFilesRecursively(mapping.sourcePath);
+
+        // Garder le même comportement que les sources locales historiques :
+        // seuls les fichiers du premier niveau du dossier choisi sont traités.
+        const allFiles = isSftp
+            ? (await sourceProvider.listDirectory(mapping.sourcePath))
+                .filter(entry => !entry.isDirectory && !entry.isSymbolicLink)
+                .map(entry => ({ path: entry.name, remotePath: entry.path, mtime: entry.mtime }))
+            : await listFilesRecursively(mapping.sourcePath);
+
         if (allFiles.length === 0) {
             log_cli('WARNING', 'Rien à copier dans le dossier source.');
             return;
         }
+
         const recentFiles = [];
-        for (const file of allFiles) {
-            const srcFile = path.join(mapping.sourcePath, file);
+        for (const source of allFiles) {
+            const filename = isSftp ? source.path : source;
+            const srcFile = isSftp ? source.remotePath : path.join(mapping.sourcePath, filename);
             try {
-                const stats = await fs.stat(srcFile);
-                if (stats.mtime > latestDestDate) {
-                    recentFiles.push(file);
-                }
+                const stats = isSftp ? { mtime: source.mtime } : await fs.stat(srcFile);
+                if (stats.mtime > latestDestDate) recentFiles.push(source);
             } catch (error) {
-                log_cli('ERROR', ` Erreur lors de l'analyse du fichier ${file}:`, error);
+                log_cli('ERROR', ` Erreur lors de l'analyse du fichier ${filename}:`, error);
                 continue;
             }
         }
+
         if (recentFiles.length === 0) {
             log_cli('WARNING', 'Aucun fichier récent trouvé dans le dossier source.');
             return;
         }
+
         const totalFiles = recentFiles.length;
         let processedFiles = 0;
         let copiedFiles = 0;
         let currentDestPath = mapping.destPath;
-        if (onProgress) {
-            onProgress({
-                status: 'start',
-                mapping: mapping.title,
-                current: 0,
-                total: totalFiles
-            });
-        }
-        // Copier les fichiers
-        for (const filename of recentFiles) {
+
+        for (const source of recentFiles) {
+            const filename = isSftp ? source.path : source;
             try {
+                if (isCancelled) break;
                 const currentFileCount = await getFileCount(currentDestPath);
                 if (currentFileCount >= maxFiles) {
                     const nextDestPath = await findNextDestination(mapping.destPath, maxFiles);
@@ -303,70 +317,59 @@ async function processMapping({ mapping, onProgress, onComplete }) {
                         break;
                     }
                     currentDestPath = nextDestPath;
-                    log_cli('INFO', ' Nouveau dossier de destination', {
-                        path: currentDestPath
-                    });
+                    log_cli('INFO', ' Nouveau dossier de destination', { path: currentDestPath });
                 }
+
                 const copied = await copyFiles({
                     sourcePath: mapping.sourcePath,
                     destPath: currentDestPath,
                     filename,
                     mapping,
+                    sourceProvider,
+                    remotePath: isSftp ? source.remotePath : null,
                     onProgress: () => {
-                        if (onProgress) {
-                            onProgress({
-                                status: 'copying',
-                                mapping: mapping.title,
-                                current: processedFiles + 1,
-                                total: totalFiles,
-                                file: filename
-                            });
-                        }
+                        if (onProgress) onProgress({
+                            status: 'copying',
+                            mapping: mapping.title,
+                            current: processedFiles + 1,
+                            total: totalFiles,
+                            file: filename
+                        });
                     }
                 });
+
                 processedFiles++;
                 if (copied) copiedFiles++;
-                if (onProgress) {
-                    onProgress({
-                        status: copied ? 'copied' : 'skipped',
-                        mapping: mapping.title,
-                        current: processedFiles,
-                        total: totalFiles,
-                        file: filename
-                    });
-                }
+                if (onProgress) onProgress({
+                    status: copied ? 'copied' : 'skipped',
+                    mapping: mapping.title,
+                    current: processedFiles,
+                    total: totalFiles,
+                    file: filename
+                });
             } catch (error) {
                 log_cli('ERROR', ` Erreur lors de la copie du fichier ${filename}:`, error);
                 processedFiles++;
-                if (onProgress) {
-                    onProgress({
-                        status: 'error',
-                        mapping: mapping.title,
-                        current: processedFiles,
-                        total: totalFiles,
-                        file: filename,
-                        error: error.message
-                    });
-                }
+                if (onProgress) onProgress({
+                    status: 'error',
+                    mapping: mapping.title,
+                    current: processedFiles,
+                    total: totalFiles,
+                    file: filename,
+                    error: error.message
+                });
             }
         }
-        if (onComplete) {
-            onComplete({
-                total: totalFiles,
-                processed: processedFiles,
-                copied: copiedFiles,
-                cancelled: false
-            });
-        }
+
+        const result = { total: totalFiles, processed: processedFiles, copied: copiedFiles, cancelled: isCancelled };
+        if (onComplete) onComplete(result);
+        return result;
     } catch (error) {
         log_cli('ERROR', ` Erreur lors du traitement du mapping:`, error);
-        if (onComplete) {
-            onComplete({
-                error: error.message,
-                cancelled: false
-            });
-        }
+        if (onComplete) onComplete({ error: error.message, cancelled: isCancelled });
         throw error;
+    } finally {
+        if (sourceProvider) sourceProvider.close();
     }
 }
 // Fonction utilitaire pour lister les fichiers récursivement

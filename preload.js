@@ -83,6 +83,9 @@ contextBridge.exposeInMainWorld('api', {
 
     // Méthodes de sélection de dossier
     selectMobileFolder: () => ipcRenderer.invoke('select-local-folder'),
+    listSftpDirectory: (options, remotePath) => ipcRenderer.invoke('sftp-list-directory', options, remotePath),
+    testSftpConnection: (options) => ipcRenderer.invoke('sftp-test-connection', options),
+    getSftpHostFingerprint: (options) => ipcRenderer.invoke('sftp-get-host-fingerprint', options),
     selectLocalFolder: () => ipcRenderer.invoke('select-local-folder'),
 
     // Méthodes de copie
