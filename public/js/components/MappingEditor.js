@@ -223,12 +223,19 @@ class MappingEditor extends HTMLElement {
                         hostKeyFingerprint: this.mapping?.sftp?.hostKeyFingerprint || ''
                     };
                     if (!options.host || !options.username || !options.password) throw new Error('Renseigne l’adresse IP, l’utilisateur et le mot de passe SFTP.');
-                    const connection = await window.api.testSftpConnection(options);
                     if (!options.hostKeyFingerprint) {
-                        const trusted = window.confirm('Première connexion SFTP. Empreinte de la clé du téléphone :\n' + connection.hostFingerprint + '\n\nConfirmer cette clé pour les connexions suivantes ?');
-                        if (!trusted) return;
-                        options.hostKeyFingerprint = connection.hostFingerprint;
+                        const captured = await window.api.getSftpHostFingerprint(options);
+                        const entered = window.prompt(
+                            'Compare l’empreinte affichée ci-dessous avec celle de l’application SftpServer sur le téléphone. Recopie-la exactement pour confirmer :\n\n' + captured.hostFingerprint,
+                            ''
+                        );
+                        if (entered === null) return;
+                        if (entered.trim().toLowerCase() !== captured.hostFingerprint.toLowerCase()) {
+                            throw new Error('Empreinte SSH non confirmée. Aucun mot de passe n’a été envoyé.');
+                        }
+                        options.hostKeyFingerprint = captured.hostFingerprint;
                     }
+                    await window.api.testSftpConnection(options);
                     let remotePath = this.querySelector('#sourcePath').value || '/';
                     while (true) {
                         const listing = await window.api.listSftpDirectory(options, remotePath);
