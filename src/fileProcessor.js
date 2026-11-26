@@ -303,10 +303,6 @@ async function processMapping({ mapping, onProgress, onComplete }) {
         let copiedFiles = 0;
         let currentDestPath = mapping.destPath;
 
-        if (onProgress) {
-            onProgress({ status: 'start', mapping: mapping.title, current: 0, total: totalFiles });
-        }
-
         for (const source of recentFiles) {
             const filename = isSftp ? source.path : source;
             try {
