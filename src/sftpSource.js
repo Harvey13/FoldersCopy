@@ -146,39 +146,6 @@ class SftpSource {
         });
     }
 
-    async listFilesRecursively(remoteDirectory, maxFiles = 250000) {
-        const files = [];
-        const visited = new Set();
-        const root = path.normalize('/' + String(remoteDirectory || '/').replace(/^\/+/, ''));
-
-        const walk = async (directory) => {
-            const normalized = path.normalize(directory);
-            if (visited.has(normalized)) return;
-            visited.add(normalized);
-
-            const entries = await this.listDirectory(normalized);
-            for (const entry of entries) {
-                if (entry.isSymbolicLink || entry.name === '.picasa.ini') continue;
-                if (entry.isDirectory) {
-                    await walk(entry.path);
-                } else {
-                    const relativePath = path.relative(root, entry.path);
-                    files.push({
-                        path: relativePath,
-                        remotePath: entry.path,
-                        mtime: Number.isNaN(entry.mtime.getTime()) ? new Date(0) : entry.mtime
-                    });
-                    if (files.length > maxFiles) {
-                        throw new Error(`La source contient plus de ${maxFiles} fichiers ; arrêt de sécurité.`);
-                    }
-                }
-            }
-        };
-
-        await walk(root);
-        return files;
-    }
-
     async download(remotePath, destinationPath) {
         if (this.closed || !this.sftp) throw new Error('La session SFTP est fermée.');
         await fsPromises.mkdir(require('path').dirname(destinationPath), { recursive: true });
