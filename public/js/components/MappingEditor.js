@@ -103,6 +103,20 @@ class MappingEditor extends HTMLElement {
                     <input type="text" id="mappingTitle" value="${this.mapping ? this.mapping.title : ''}" placeholder="Entrez un titre">
                 </div>
                 <div class="form-group">
+                    <label>Type de source</label>
+                    <select id="sourceType">
+                        <option value="local" ${!this.mapping || this.mapping.sourceType !== 'sftp' ? 'selected' : ''}>Dossier Windows / WebDAV monté</option>
+                        <option value="sftp" ${this.mapping && this.mapping.sourceType === 'sftp' ? 'selected' : ''}>Téléphone (SFTP)</option>
+                    </select>
+                </div>
+                <div id="sftpSettings" style="display:${this.mapping && this.mapping.sourceType === 'sftp' ? 'block' : 'none'}">
+                    <div class="form-group"><label>Adresse IP du téléphone</label><input id="sftpHost" value="${this.mapping?.sftp?.host || ''}" placeholder="192.168.1.10"></div>
+                    <div class="form-group"><label>Port SFTP</label><input id="sftpPort" type="number" value="${this.mapping?.sftp?.port || 2222}"></div>
+                    <div class="form-group"><label>Utilisateur</label><input id="sftpUsername" value="${this.mapping?.sftp?.username || 'backup'}"></div>
+                    <div class="form-group"><label>Mot de passe</label><input id="sftpPassword" type="password" value="${this.mapping?.sftp?.password || ''}"></div>
+                    <p class="form-help">Le mot de passe est conservé dans la configuration locale de FoldersCopy. Le serveur SFTP doit être actif sur le téléphone.</p>
+                </div>
+                <div class="form-group">
                     <label>Source (Mobile)</label>
                     <div class="path-input">
                         <input type="text" id="sourcePath" value="${this.mapping ? this.mapping.sourcePath : ''}" readonly placeholder="Sélectionnez un dossier source">
@@ -181,8 +195,16 @@ class MappingEditor extends HTMLElement {
             console.log('MappingEditor: Save button clicked');
             const mappingData = {
                 title: this.querySelector('#mappingTitle').value,
+                sourceType: this.querySelector('#sourceType').value,
                 sourcePath: this.querySelector('#sourcePath').value,
-                destPath: this.querySelector('#destPath').value
+                destPath: this.querySelector('#destPath').value,
+                sftp: this.querySelector('#sourceType').value === 'sftp' ? {
+                    host: this.querySelector('#sftpHost').value.trim(),
+                    port: Number(this.querySelector('#sftpPort').value || 2222),
+                    username: this.querySelector('#sftpUsername').value.trim(),
+                    password: this.querySelector('#sftpPassword').value,
+                    hostKeyFingerprint: this.querySelector('#sftpHost').dataset.hostFingerprint || this.mapping?.sftp?.hostKeyFingerprint || ''
+                } : undefined
             };
 
             if (this.mapping) {
@@ -196,14 +218,52 @@ class MappingEditor extends HTMLElement {
             this.hide();
         });
 
+        this.querySelector('#sourceType').addEventListener('change', (event) => {
+            this.querySelector('#sftpSettings').style.display = event.target.value === 'sftp' ? 'block' : 'none';
+            this.querySelector('#browseSourceBtn').title = event.target.value === 'sftp' ? 'Parcourir le téléphone en SFTP' : 'Sélectionner un dossier local';
+        });
+
         // Boutons de sélection de dossier
         this.querySelector('#browseSourceBtn').addEventListener('click', async () => {
             console.log('MappingEditor: Browse source button clicked');
             if (window.api) {
                 try {
-                    await window.api.selectMobileFolder();
+                    if (this.querySelector('#sourceType').value !== 'sftp') {
+                        const result = await window.api.selectMobileFolder();
+                        if (result && result.path) this.querySelector('#sourcePath').value = result.path;
+                        return;
+                    }
+                    const options = {
+                        host: this.querySelector('#sftpHost').value.trim(),
+                        port: Number(this.querySelector('#sftpPort').value || 2222),
+                        username: this.querySelector('#sftpUsername').value.trim(),
+                        password: this.querySelector('#sftpPassword').value,
+                        hostKeyFingerprint: this.mapping?.sftp?.hostKeyFingerprint || ''
+                    };
+                    if (!options.host || !options.username || !options.password) throw new Error('Renseigne l’adresse IP, l’utilisateur et le mot de passe SFTP.');
+                    const connection = await window.api.testSftpConnection(options);
+                    if (!options.hostKeyFingerprint) {
+                        const trusted = window.confirm('Première connexion SFTP. Empreinte de la clé du téléphone :\n' + connection.hostFingerprint + '\n\nConfirmer cette clé pour les connexions suivantes ?');
+                        if (!trusted) return;
+                        options.hostKeyFingerprint = connection.hostFingerprint;
+                    }
+                    let remotePath = this.querySelector('#sourcePath').value || '/';
+                    while (true) {
+                        const listing = await window.api.listSftpDirectory(options, remotePath);
+                        const folders = listing.entries.filter(item => item.isDirectory).map(item => item.name);
+                        const choice = window.prompt('Dossier actuel : ' + remotePath + '\nSous-dossiers :\n' + (folders.join('\n') || '(aucun)') + '\n\nSaisis le chemin du dossier à utiliser, ou un chemin de sous-dossier :', remotePath);
+                        if (choice === null) break;
+                        remotePath = choice.trim() || '/';
+                        const check = await window.api.listSftpDirectory(options, remotePath);
+                        if (check.entries) {
+                            this.querySelector('#sourcePath').value = remotePath;
+                            this.querySelector('#sftpHost').dataset.hostFingerprint = options.hostKeyFingerprint;
+                            break;
+                        }
+                    }
                 } catch (error) {
-                    console.error('Error selecting mobile folder:', error);
+                    console.error('Error selecting source folder:', error);
+                    window.alert(error.message);
                 }
             }
         });
