@@ -15,7 +15,7 @@ La prise en charge SFTP est ajoutée sans supprimer les mappings historiques :
 6. Cliquer sur le bouton de sélection de la source. À la première connexion, vérifier l'empreinte de clé SSH affichée et confirmer qu'elle correspond à celle du téléphone.
 7. Choisir le chemin distant, puis la destination Windows et enregistrer.
 
-Le serveur Android expose le stockage partagé sous `/`. Exemple : `/DCIM/Camera`.
+Le serveur Android expose le stockage partagé sous `/`. Exemple : `/DCIM/Camera`. Comme le moteur actuel de FoldersCopy, le traitement porte sur les fichiers directement présents dans le dossier sélectionné ; sélectionne donc le sous-dossier exact à sauvegarder.
 
 ## Sécurité
 
