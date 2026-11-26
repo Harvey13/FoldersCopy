@@ -1,0 +1,175 @@
+const path = require('path').posix;
+const fs = require('fs');
+const fsPromises = fs.promises;
+const { pipeline } = require('stream/promises');
+const { Client } = require('ssh2');
+
+function normalizeFingerprint(value) {
+    return String(value || '').replace(/^SHA256:/i, '').trim();
+}
+
+function isDirectory(attrs) {
+    if (typeof attrs.isDirectory === 'function') return attrs.isDirectory();
+    return (Number(attrs.mode) & 0o170000) === 0o040000;
+}
+
+function isSymbolicLink(attrs) {
+    return (Number(attrs.mode) & 0o170000) === 0o120000;
+}
+
+class SftpSource {
+    constructor(options) {
+        this.options = options;
+        this.connection = new Client();
+        this.sftp = null;
+        this.hostFingerprint = null;
+        this.closed = false;
+    }
+
+    static async connect(options) {
+        const source = new SftpSource(options);
+        await source.open();
+        return source;
+    }
+
+    async open() {
+        const { host, port = 2222, username, password, hostKeyFingerprint } = this.options || {};
+        if (!host || !username || !password) {
+            throw new Error('Configuration SFTP incomplète : adresse, utilisateur et mot de passe requis.');
+        }
+
+        const numericPort = Number(port);
+        if (!Number.isInteger(numericPort) || numericPort < 1 || numericPort > 65535) {
+            throw new Error('Port SFTP invalide.');
+        }
+
+        await new Promise((resolve, reject) => {
+            let settled = false;
+            const fail = (error) => {
+                if (settled) return;
+                settled = true;
+                reject(error);
+            };
+
+            this.connection.once('ready', () => {
+                this.connection.sftp((error, sftp) => {
+                    if (error) return fail(error);
+                    if (settled) return;
+                    settled = true;
+                    this.sftp = sftp;
+                    resolve();
+                });
+            });
+
+            this.connection.once('error', fail);
+            this.connection.connect({
+                host,
+                port: numericPort,
+                username,
+                password,
+                readyTimeout: 15000,
+                keepaliveInterval: 10000,
+                keepaliveCountMax: 3,
+                hostHash: 'sha256',
+                hostVerifier: (fingerprint) => {
+                    this.hostFingerprint = fingerprint;
+                    const expected = normalizeFingerprint(hostKeyFingerprint);
+                    return !expected || expected === normalizeFingerprint(fingerprint);
+                }
+            });
+        }).catch((error) => {
+            this.connection.end();
+            if (/host key/i.test(error.message)) {
+                throw new Error('La clé SSH du téléphone a changé. Vérifie le serveur avant de faire confiance à cette nouvelle clé.');
+            }
+            throw new Error(`Connexion SFTP impossible : ${error.message}`);
+        });
+    }
+
+    async listDirectory(remoteDirectory) {
+        const remotePath = path.normalize('/' + String(remoteDirectory || '/').replace(/^\\/+/, ''));
+        return new Promise((resolve, reject) => {
+            this.sftp.readdir(remotePath, (error, entries) => {
+                if (error) return reject(new Error(`Lecture SFTP impossible (${remotePath}) : ${error.message}`));
+                const result = entries
+                    .filter((entry) => entry.filename !== '.' && entry.filename !== '..')
+                    .map((entry) => ({
+                        name: entry.filename,
+                        path: path.join(remotePath, entry.filename),
+                        isDirectory: isDirectory(entry.attrs),
+                        isSymbolicLink: isSymbolicLink(entry.attrs),
+                        size: Number(entry.attrs.size || 0),
+                        mtime: new Date(Number(entry.attrs.mtime || 0) * 1000)
+                    }))
+                    .sort((a, b) => {
+                        if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+                        return a.name.localeCompare(b.name, 'fr');
+                    });
+                resolve(result);
+            });
+        });
+    }
+
+    async listFilesRecursively(remoteDirectory, maxFiles = 250000) {
+        const files = [];
+        const visited = new Set();
+        const root = path.normalize('/' + String(remoteDirectory || '/').replace(/^\\/+/, ''));
+
+        const walk = async (directory) => {
+            const normalized = path.normalize(directory);
+            if (visited.has(normalized)) return;
+            visited.add(normalized);
+
+            const entries = await this.listDirectory(normalized);
+            for (const entry of entries) {
+                if (entry.isSymbolicLink || entry.name === '.picasa.ini') continue;
+                if (entry.isDirectory) {
+                    await walk(entry.path);
+                } else {
+                    const relativePath = path.relative(root, entry.path);
+                    files.push({
+                        path: relativePath,
+                        remotePath: entry.path,
+                        mtime: Number.isNaN(entry.mtime.getTime()) ? new Date(0) : entry.mtime
+                    });
+                    if (files.length > maxFiles) {
+                        throw new Error(`La source contient plus de ${maxFiles} fichiers ; arrêt de sécurité.`);
+                    }
+                }
+            }
+        };
+
+        await walk(root);
+        return files;
+    }
+
+    async download(remotePath, destinationPath) {
+        if (this.closed || !this.sftp) throw new Error('La session SFTP est fermée.');
+        await fsPromises.mkdir(require('path').dirname(destinationPath), { recursive: true });
+
+        const input = this.sftp.createReadStream(remotePath);
+        const output = fs.createWriteStream(destinationPath);
+        try {
+            await pipeline(input, output);
+            return true;
+        } catch (error) {
+            input.destroy();
+            output.destroy();
+            await fsPromises.rm(destinationPath, { force: true }).catch(() => {});
+            throw new Error(`Téléchargement SFTP échoué pour ${remotePath} : ${error.message}`);
+        }
+    }
+
+    close() {
+        if (this.closed) return;
+        this.closed = true;
+        try {
+            if (this.sftp) this.sftp.end();
+            this.connection.end();
+        } catch (_) {
+            // Fermeture best-effort de la session.
+        }
+    }
+}
+
+module.exports = { SftpSource };
