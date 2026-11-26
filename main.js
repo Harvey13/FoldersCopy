@@ -507,7 +507,6 @@ app.whenReady().then(async () => {
     setupIPC();
     createMainWindow();
     createServer();
-    startConnectionCheck();
 });
 
 // Quitter quand toutes les fenêtres sont fermées
