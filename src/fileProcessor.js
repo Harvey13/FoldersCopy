@@ -50,7 +50,7 @@ async function findLatestFileDate(basePath) {
         }
         return latest;
     } catch (error) {
-        log_cli('ERROR', 'Erreur lors de la recherche de la date la plus récente', { path: basePath, error: error.message });
+        log_cli('Erreur lors de la recherche de la date la plus récente', { path: basePath, error: error.message });
         return new Date(0);
     }
 }
@@ -128,7 +128,7 @@ async function processMapping({ mapping, onProgress, onComplete }) {
                 file.provider = provider;
                 if (await copyOneFile(file, destination, mapping, onProgress)) copied++;
             } catch (error) {
-                log_cli('ERROR', 'Erreur lors de la copie du fichier', { mapping: mapping.title, file: file.path, error: error.message });
+                log_cli('Erreur lors de la copie du fichier', { mapping: mapping.title, file: file.path, error: error.message });
                 if (onProgress) onProgress({ status: 'file-error', mapping: mapping.title, file: file.path, error: error.message });
             }
             processed++;
@@ -138,7 +138,7 @@ async function processMapping({ mapping, onProgress, onComplete }) {
         if (onComplete) onComplete(result);
         return result;
     } catch (error) {
-        log_cli('ERROR', 'Erreur lors du traitement du mapping', { mapping: mapping && mapping.title, error: error.message });
+        log_cli('Erreur lors du traitement du mapping', { mapping: mapping && mapping.title, error: error.message });
         if (onComplete) onComplete({ error: error.message, cancelled: isCancelled });
         throw error;
     } finally { if (provider) provider.close(); }
