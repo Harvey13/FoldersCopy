@@ -322,25 +322,74 @@ function setupIPC() {
         }
     });
 
-    // Gestionnaires de copie
-    ipcMain.handle('start-copy', async (event, mappingId) => {
+    // Navigation SFTP et test de connexion (lecture seule).
+    ipcMain.handle('sftp-list-directory', async (_event, options, remotePath = '/') => {
+        const source = await SftpSource.connect(options);
         try {
-            // Logique de copie à implémenter
-            return { success: true };
-        } catch (error) {
-            console.error('[COPY] Erreur lors du démarrage de la copie:', error);
-            throw error;
+            return { entries: await source.listDirectory(remotePath), hostFingerprint: source.hostFingerprint };
+        } finally {
+            source.close();
         }
     });
 
-    ipcMain.handle('cancel-copy', async (event, mappingId) => {
+    ipcMain.handle('sftp-test-connection', async (_event, options) => {
+        const source = await SftpSource.connect(options);
         try {
-            // Logique d'annulation à implémenter
-            return { success: true };
-        } catch (error) {
-            console.error('[COPY] Erreur lors de l\'annulation de la copie:', error);
-            throw error;
+            return { success: true, hostFingerprint: source.hostFingerprint };
+        } finally {
+            source.close();
         }
+    });
+
+    // Démarrage réel du moteur de sauvegarde.
+    ipcMain.handle('start-copy', async (event, requestedMappings) => {
+        if (copyInProgress) throw new Error('Une sauvegarde est déjà en cours.');
+        const config = getConfigManager().getConfig();
+        let mappings;
+        if (Array.isArray(requestedMappings)) mappings = requestedMappings;
+        else if (typeof requestedMappings === 'string') mappings = (config.mappings || []).filter(m => m.id === requestedMappings);
+        else mappings = config.mappings || [];
+        if (!mappings.length) throw new Error('Aucun mapping à sauvegarder.');
+
+        copyInProgress = true;
+        cancelCopyRequested = false;
+        resetCancelFlag();
+        const sendProgress = (data) => {
+            const target = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+            if (target) target.webContents.send('copy-progress', data);
+            else if (event.sender && !event.sender.isDestroyed()) event.sender.send('copy-progress', data);
+        };
+        sendProgress({ status: 'start', total: mappings.length });
+        const results = [];
+        try {
+            for (const mapping of mappings) {
+                if (cancelCopyRequested) break;
+                sendProgress({ status: 'starting', mapping: mapping.title, total: 0 });
+                const result = await processMapping({
+                    mapping,
+                    onProgress: sendProgress,
+                    onComplete: (value) => {
+                        if (value && value.error) sendProgress({ status: 'error', error: value.error });
+                        else sendProgress({ status: 'completed', mapping: mapping.title, result: value });
+                    }
+                });
+                results.push({ mappingId: mapping.id, ...result });
+            }
+            sendProgress({ status: 'finished', results, cancelled: cancelCopyRequested });
+            return { success: true, results, cancelled: cancelCopyRequested };
+        } catch (error) {
+            sendProgress({ status: 'error', error: error.message });
+            throw error;
+        } finally {
+            copyInProgress = false;
+            cancelCopyRequested = false;
+        }
+    });
+
+    ipcMain.handle('cancel-copy', async () => {
+        cancelCopyRequested = true;
+        cancelCopy();
+        return { success: true };
     });
 
     // Gestionnaires de mapping
