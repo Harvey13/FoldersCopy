@@ -233,15 +233,24 @@ class MappingEditor extends HTMLElement {
                     while (true) {
                         const listing = await window.api.listSftpDirectory(options, remotePath);
                         const folders = listing.entries.filter(item => item.isDirectory).map(item => item.name);
-                        const choice = window.prompt('Dossier actuel : ' + remotePath + '\nSous-dossiers :\n' + (folders.join('\n') || '(aucun)') + '\n\nSaisis le chemin du dossier à utiliser, ou un chemin de sous-dossier :', remotePath);
+                        const choice = window.prompt(
+                            'Dossier actuel : ' + remotePath + '\nSous-dossiers :\n' + (folders.join('\n') || '(aucun)') +
+                            '\n\nSaisis le nom exact d’un sous-dossier pour y entrer, .. pour remonter, ou . pour choisir ce dossier :',
+                            '.'
+                        );
                         if (choice === null) break;
-                        remotePath = choice.trim() || '/';
-                        const check = await window.api.listSftpDirectory(options, remotePath);
-                        if (check.entries) {
+                        const selected = choice.trim();
+                        if (selected === '.') {
                             this.querySelector('#sourcePath').value = remotePath;
                             this.querySelector('#sftpHost').dataset.hostFingerprint = options.hostKeyFingerprint;
                             break;
                         }
+                        if (selected === '..') {
+                            remotePath = remotePath.replace(/\\/[^/]+$/, '') || '/';
+                            continue;
+                        }
+                        if (!folders.includes(selected)) throw new Error('Sous-dossier inconnu : ' + selected);
+                        remotePath = (remotePath === '/' ? '' : remotePath) + '/' + selected;
                     }
                 } catch (error) {
                     console.error('Error selecting source folder:', error);
