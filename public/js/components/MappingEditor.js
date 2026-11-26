@@ -149,29 +149,7 @@ class MappingEditor extends HTMLElement {
     }
 
     initFolderSelectionHandlers() {
-        console.log('MappingEditor: Initializing folder selection handlers');
-        // Supprimer les anciens écouteurs s'ils existent
-        window.removeEventListener('mobile-folder-selected', this.handleMobileFolderSelected);
-        window.removeEventListener('pc-folder-selected', this.handlePCFolderSelected);
-
-        // Ajouter les nouveaux écouteurs via l'API
-        if (window.api) {
-            window.api.onFolderSelected((path) => {
-                console.log('MappingEditor: Mobile folder selected via API:', path);
-                const input = this.querySelector('#sourcePath');
-                if (input) {
-                    input.value = path;
-                }
-            });
-
-            window.api.onFolderSelected((path) => {
-                console.log('MappingEditor: PC folder selected via API:', path);
-                const input = this.querySelector('#destPath');
-                if (input) {
-                    input.value = path;
-                }
-            });
-        }
+        // Les sélecteurs retournent directement leur chemin via l'API IPC.
     }
 
     addEventListeners() {
@@ -193,6 +171,10 @@ class MappingEditor extends HTMLElement {
         // Bouton de sauvegarde
         this.querySelector('.save-btn').addEventListener('click', () => {
             console.log('MappingEditor: Save button clicked');
+            if (this.querySelector('#sourceType').value === 'sftp' && (!this.querySelector('#sftpHost').value.trim() || !this.querySelector('#sftpUsername').value.trim() || !this.querySelector('#sftpPassword').value || !this.querySelector('#sourcePath').value.trim())) {
+                window.alert('Renseigne la connexion SFTP et sélectionne un dossier source.');
+                return;
+            }
             const mappingData = {
                 title: this.querySelector('#mappingTitle').value,
                 sourceType: this.querySelector('#sourceType').value,
@@ -272,7 +254,8 @@ class MappingEditor extends HTMLElement {
             console.log('MappingEditor: Browse dest button clicked');
             if (window.api) {
                 try {
-                    await window.api.selectPcFolder();
+                    const result = await window.api.selectPcFolder();
+                    if (result && result.path) this.querySelector('#destPath').value = result.path;
                 } catch (error) {
                     console.error('Error selecting PC folder:', error);
                 }
